@@ -1,0 +1,60 @@
+
+spring:
+  
+  application:
+    name: inventory-service
+
+  devtools:
+    add-properties: false
+
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      repositories:
+        enabled: false
+
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  kafka:
+    
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP_ID}
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+
+  jpa:
+    hibernate:
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+      ddl-auto: update
+    show-sql: true
+
+server:
+  port: ${SERVER_PORT:8086}
+
+logging:
+  level:
+    root: info
+    org.springframework.web: debug
+    org.springframework.security: DEBUG
+
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
