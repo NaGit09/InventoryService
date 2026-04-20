@@ -13,6 +13,8 @@ public class Warehouse {
     private Integer warehouseID;
 
     private String name;
+    
     private String location;
+    
     private Boolean isDefault = false;
 }

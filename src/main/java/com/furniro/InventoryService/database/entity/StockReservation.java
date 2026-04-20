@@ -10,6 +10,9 @@ import com.furniro.InventoryService.utils.ReservationStatus;
 @Table(name = "StockReservation")
 @Getter
 @Setter
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
 public class StockReservation {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -21,9 +24,12 @@ public class StockReservation {
     
     private Integer quantity;
 
+    private Integer variantID;
+
     private LocalDateTime expiryTime;
 
 
     @Enumerated(EnumType.STRING)
-    private ReservationStatus status;
+    @Builder.Default
+    private ReservationStatus status = ReservationStatus.PENDING;
 }

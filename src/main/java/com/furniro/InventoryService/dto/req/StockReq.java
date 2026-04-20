@@ -4,7 +4,6 @@ import lombok.*;
 
 @Getter
 @Setter
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class StockReq {
@@ -18,7 +17,6 @@ public class StockReq {
 
     private Integer quantity;
 
-    // other field for create stock
     private Integer variantId;
 
     private Integer warehouseId;
