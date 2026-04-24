@@ -4,7 +4,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.furniro.InventoryService.dto.API.AType;
-import com.furniro.InventoryService.service.StockService;
+import com.furniro.InventoryService.service.StatisticService;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -15,10 +15,10 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class PublicStockController {
 
-    private final StockService stockService;
+    private final StatisticService statisticService;
 
     @GetMapping("/available/{sku}")
     public ResponseEntity<AType> getAvailableStock(@PathVariable String sku) {
-        return stockService.getAvailableStock(sku);
+        return statisticService.getAvailableStock(sku);
     }
 }

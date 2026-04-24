@@ -5,7 +5,6 @@ import com.furniro.InventoryService.service.ReservationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 import lombok.RequiredArgsConstructor;
 import java.util.List;
@@ -18,36 +17,53 @@ public class KafkaConsumer {
 
     private final ReservationService reservationService;
     private final ObjectMapper objectMapper;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final KafkaProducer kafkaProducer;
 
-
+    
     @KafkaListener(topics = "order.created", groupId = "inventory")
     public void onOrderCreated(Map<String, Object> message) {
         try {
             log.info("Received order.created: {}", message);
 
+            // get order id
             Integer orderId = (Integer) message.get("orderID");
-            
-            List<StockItem> items = objectMapper.convertValue(message.get("items"),
-                    objectMapper.getTypeFactory().constructCollectionType(List.class, StockItem.class));
 
+            // convert items
+            List<StockItem> items = objectMapper.convertValue(message.get("items"),
+                    objectMapper.getTypeFactory()
+                    .constructCollectionType(List.class, StockItem.class));
+
+            // reserve stock
             reservationService.handleOrderCreated(orderId, items);
 
-            kafkaTemplate.send("inventory.reserved", Map.of("orderID", orderId, "status", "SUCCESS"));
+            // send inventory.reserved event
+            Map<String, Object> response = Map.of("orderID", orderId, "status", "SUCCESS");
+            kafkaProducer.send("inventory.reserved", response);
+            log.info("Sent inventory.reserved event: {}", response);
 
         } catch (Exception e) {
+            // error log
             log.error("Failed to reserve stock for order: {}", message.get("orderID"), e);
-            kafkaTemplate.send("inventory.reserved", Map.of("orderID", message.get("orderID"), "status", "FAILED"));
+            
+            // send inventory.reserved event
+            Map<String, Object> response = Map.of("orderID", message.get("orderID"), "status", "FAILED");
+            kafkaProducer.send("inventory.reserved", response);
+            log.info("Sent inventory.reserved event: {}", response);
         }
     }
 
     @KafkaListener(topics = "payment.completed", groupId = "inventory")
     public void onPaymentCompleted(Map<String, Object> message) {
         try {
+            log.info("Received payment.completed: {}", message);
+
+            // get order id
             Integer orderId = (Integer) message.get("orderID");
             log.info("Payment completed for order: {}. Committing stock...", orderId);
 
+            // commit stock
             reservationService.handlePaymentSuccess(orderId);
+            
         } catch (Exception e) {
             log.error("Error committing stock for order: {}", message.get("orderID"), e);
         }
