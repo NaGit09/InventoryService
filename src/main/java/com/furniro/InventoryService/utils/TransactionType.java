@@ -1,5 +1,5 @@
 package com.furniro.InventoryService.utils;
 
 public enum TransactionType {
-    IN, OUT, RETURN, ADJUST
+    IN, OUT, RETURN, ADJUST , RESTOCK , SALE
 }

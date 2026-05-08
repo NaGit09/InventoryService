@@ -59,10 +59,7 @@ public class StockTransactionService {
             }
 
             // 3. Trả về dữ liệu
-            return ResponseEntity.ok(ApiType.builder()
-            .code(200)
-            .data(pageResult)
-            .message("Lấy danh sách giao dịch thành công").build());
+            return ResponseEntity.ok(ApiType.success(pageResult));
 
         } catch (Exception e) {
             log.error("Error getting transactions: ", e);

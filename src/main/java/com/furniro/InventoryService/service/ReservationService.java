@@ -4,9 +4,7 @@ import com.furniro.InventoryService.database.entity.Stock;
 import com.furniro.InventoryService.database.entity.StockReservation;
 import com.furniro.InventoryService.database.repository.ReservationRepository;
 import com.furniro.InventoryService.dto.req.StockItem;
-import com.furniro.InventoryService.dto.req.TransactionLog;
 import com.furniro.InventoryService.utils.ReservationStatus;
-import com.furniro.InventoryService.utils.TransactionType;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +13,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -23,17 +22,20 @@ public class ReservationService {
 
     private final StockService stockService;
     private final ReservationRepository reservationRepository;
-    private final StockTransactionService stockTransactionService;
 
     @Transactional
     public void handleOrderCreated(Integer orderId, List<StockItem> items) {
+
         log.info("Processing reservation for order: {}", orderId);
 
         for (StockItem item : items) {
-            // 1. Cập nhật số lượng khả dụng trong bảng Stock
-            Stock stock = stockService.reserveStock(item.getSku(), item.getQuantity());
+            // 1. Update available quantity and reserved quantity in Stock
+            Stock stock = stockService.reserveStock(
+                    item.getSku(),
+                    item.getQuantity(),
+                    orderId.toString());
 
-            // 2. Tạo bản ghi giữ chỗ tạm thời
+            // 2. Create temporary reservation record
             StockReservation reservation = StockReservation.builder()
                     .orderID(orderId)
                     .sku(stock.getSku())
@@ -47,40 +49,38 @@ public class ReservationService {
 
     @Transactional
     public void handlePaymentSuccess(Integer orderId) {
+
         List<StockReservation> reservations = reservationRepository.findByOrderIDAndStatus(orderId,
                 ReservationStatus.PENDING);
 
         for (StockReservation res : reservations) {
-            // 1. Trừ Total và Reserved trong bảng Stock
-            stockService.deductStock(res.getSku(), res.getQuantity());
 
-            // 2. Ghi nhật ký xuất kho vĩnh viễn
-            TransactionLog transaction = TransactionLog.builder()
-                    .sku(res.getSku())
-                    .quantity(res.getQuantity())
-                    .type(TransactionType.OUT)
-                    .referenceID(orderId.toString())
-                    .note("Xác nhận đơn hàng: " + orderId)
-                    .build();
+            // 1. Deduct Total and Reserved in Stock (StockService handles transaction recording)
+            stockService.deductStock(res.getSku(), res.getQuantity(), orderId.toString());
 
-            stockTransactionService.recordTransaction(transaction);
-
-            // 3. Cập nhật trạng thái lệnh giữ chỗ
+            // 2. Update reservation status
             res.setStatus(ReservationStatus.COMPLETED);
+            
             reservationRepository.save(res);
         }
     }
 
     @Transactional
     public void handleOrderCancelled(Integer orderId) {
+
         List<StockReservation> reservations = reservationRepository.findByOrderIDAndStatus(orderId,
                 ReservationStatus.PENDING);
 
         for (StockReservation res : reservations) {
-            // Đưa Reserved trở lại Available
-            stockService.releaseStock(res.getSku(), res.getQuantity());
+            // 1. Return Reserved to Available
+            stockService.releaseStock(res.getSku(),
+                    res.getQuantity(),
+                    orderId.toString());
 
+            // 2. Update reservation status
             res.setStatus(ReservationStatus.CANCELLED);
+
+            
             reservationRepository.save(res);
         }
     }
@@ -88,17 +88,35 @@ public class ReservationService {
     @Scheduled(fixedRate = 60000)
     @Transactional
     public void cleanupExpiredReservations() {
+        expireStaleReservations();
+    }
+
+    @Transactional
+    public List<Integer> expireStaleReservations() {
+
         LocalDateTime now = LocalDateTime.now();
+
         List<StockReservation> expired = reservationRepository
                 .findAllByStatusAndExpiryTimeBefore(ReservationStatus.PENDING, now);
 
         if (!expired.isEmpty()) {
             log.info("Cleaning up {} expired reservations", expired.size());
+            
             for (StockReservation res : expired) {
-                stockService.releaseStock(res.getSku(), res.getQuantity());
+                stockService.releaseStock(
+                    res.getSku(),
+                    res.getQuantity(),
+                    "EXPIRY-" + res.getOrderID());
+
                 res.setStatus(ReservationStatus.EXPIRED);
+
                 reservationRepository.save(res);
             }
         }
+        
+        return expired.stream()
+                .map(StockReservation::getOrderID)
+                .distinct()
+                .collect(Collectors.toList());
     }
 }

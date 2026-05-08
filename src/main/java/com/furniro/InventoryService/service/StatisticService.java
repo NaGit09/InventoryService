@@ -36,11 +36,7 @@ public class StatisticService {
                         new InventoryException(InventoryErrorCode.STOCK_NOT_FOUND));
 
         // 2. return response
-        return ResponseEntity.ok(ApiType.builder()
-                .code(200)
-                .message("Get available stock succeessfully!")
-                .data(stock.getAvailableQuantity())
-                .build());
+        return ResponseEntity.ok(ApiType.success(stock.getAvailableQuantity()));
     }
 
     // get total stock
@@ -70,11 +66,7 @@ public class StatisticService {
                 .lowStock(lowStock)
                 .build();
 
-        return ResponseEntity.ok(ApiType.builder()
-                .code(200)
-                .message("Get total stock succeessfully!")
-                .data(stockStatistic)
-                .build());
+        return ResponseEntity.ok(ApiType.success(stockStatistic));
     }
 
     // get all stock
@@ -95,11 +87,7 @@ public class StatisticService {
         Page<Stock> pagenation = stockRepository.findAll(pageable);
 
         // 4. return response
-        return ResponseEntity.ok(ApiType.builder()
-                .code(200)
-                .message("Get all stock succeessfully!")
-                .data(pagenation)
-                .build());
+        return ResponseEntity.ok(ApiType.success(pagenation));
     }
 
     // check stock low
@@ -120,11 +108,7 @@ public class StatisticService {
         Page<Stock> pagenation = stockRepository.listStockLowThreshold(pageable);
 
         // 4. return response
-        return ResponseEntity.ok(ApiType.builder()
-                .code(200)
-                .message("Get all stock succeessfully!")
-                .data(pagenation)
-                .build());
+        return ResponseEntity.ok(ApiType.success(pagenation));
     }
 
 }

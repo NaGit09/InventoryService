@@ -21,5 +21,6 @@ public class TransactionLog {
     TransactionType type;
 
     String referenceID;
+    
     String note;
 }

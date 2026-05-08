@@ -23,7 +23,6 @@ public class AdminStockController {
     private final StatisticService statisticService;
     private final StockTransactionService stockTransactionService;
 
-    // ==== QUẢN LÝ KHO (CRUD) ====
     @PostMapping("/create")
     public ResponseEntity<AType> createStock
     (@Valid @RequestBody StockReq req) {
@@ -36,7 +35,16 @@ public class AdminStockController {
         return stockService.updateStock(req);
     }
 
-    // ==== THỐNG KÊ & GIÁM SÁT ====
+    @DeleteMapping("/delete/{stockId}")
+    public ResponseEntity<AType> deleteStock(@PathVariable Integer stockId) {
+        return stockService.deleteStock(stockId);
+    }
+
+    @GetMapping("/{sku}")
+    public ResponseEntity<AType> getStockBySku(@PathVariable String sku) {
+        return stockService.getStockBySku(sku);
+    }
+
     @GetMapping("/all")
     public ResponseEntity<AType> getAllStock(
             @RequestParam(defaultValue = "0") int page,
@@ -58,13 +66,11 @@ public class AdminStockController {
         return statisticService.checkLowStock(page, size, sortBy);
     }
 
-    // ==== NHẬT KÝ BIẾN ĐỘNG (BỔ SUNG) ====
     @GetMapping("/transactions")
     public ResponseEntity<AType> getStockLogs(
             @RequestParam(required = false) String sku,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        // Gọi hàm tìm kiếm lịch sử từ StockTransactionService
         return stockTransactionService.getAllTransactions(sku, page, size);
     }
 }

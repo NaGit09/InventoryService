@@ -12,8 +12,12 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class StockStatistic {
+    
     private Integer totalAvailableStock;
+
     private Integer totalReservedStock;
+
     private Integer totalStock;
+
     private List<Stock> lowStock;
 }

@@ -1,12 +1,14 @@
 package com.furniro.InventoryService.dto.API;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
-@Getter
-@Setter
+@Data
 @SuperBuilder
+@NoArgsConstructor
+@AllArgsConstructor
 public abstract class AType {
     private int code;
     private String message;
