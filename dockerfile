@@ -23,7 +23,6 @@ COPY --from=extractor /app/dependencies/ ./
 COPY --from=extractor /app/spring-boot-loader/ ./
 COPY --from=extractor /app/snapshot-dependencies/ ./
 COPY --from=extractor /app/application/ ./
-COPY public.pem private_key_pkcs8.pem ./
 
 EXPOSE 8081
 
