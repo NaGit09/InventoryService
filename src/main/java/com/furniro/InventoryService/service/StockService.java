@@ -29,9 +29,13 @@ import lombok.extern.slf4j.Slf4j;
 
 @RequiredArgsConstructor
 public class StockService {
+    
     private final StockRepository stockRepository;
+
     private final WarehouseRepository warehouseRepository;
+
     private final StockTransactionService stockTransactionService;
+
     private final KafkaProducer kafkaProducer;
 
     // ==== HANDLER ====
@@ -74,11 +78,11 @@ public class StockService {
 
         TransactionType type;
         // 2. update stock
-        if (req.getType().equalsIgnoreCase("IN")) {
+        if (TransactionType.IN.name().equalsIgnoreCase(req.getType().name())) {
             stock.setTotalQuantity(stock.getTotalQuantity() + req.getQuantity());
             stock.setAvailableQuantity(stock.getAvailableQuantity() + req.getQuantity());
             type = TransactionType.IN;
-        } else if (req.getType().equalsIgnoreCase("OUT")) {
+        } else if (TransactionType.OUT.name().equalsIgnoreCase(req.getType().name())) {
             if (stock.getAvailableQuantity() < req.getQuantity()) {
                 throw new InventoryException(InventoryErrorCode.WAREHOUSE_NOT_ENOUGH_STOCK);
             }
@@ -141,6 +145,7 @@ public class StockService {
     // event when adjust stock
     @Transactional
     public void adjustStock(String sku, Integer quantity, String referenceId, String note) {
+        
         Stock stock = stockRepository.findBySku(sku)
                 .orElseThrow(() -> new InventoryException(InventoryErrorCode.STOCK_NOT_FOUND));
 
@@ -157,7 +162,7 @@ public class StockService {
             stock.setAvailableQuantity(stock.getAvailableQuantity() + quantity);
             type = TransactionType.ADJUST;
         }
-
+        
         stockRepository.save(stock);
 
         // record transaction
@@ -201,6 +206,7 @@ public class StockService {
                     "warehouseID", stock.getWarehouse().getWarehouseID(),
                     "timestamp", System.currentTimeMillis());
 
+            
             kafkaProducer.send("inventory.low-stock", lowStockEvent);
             log.info("Published inventory.low-stock for SKU: {}", sku);
         }

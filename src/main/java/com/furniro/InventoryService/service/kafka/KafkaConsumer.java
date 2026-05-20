@@ -40,7 +40,7 @@ public class KafkaConsumer {
             reservationService.handleOrderCreated(orderId, items);
 
             // 3. Send response to Order Service
-            Map<String, Object> response = Map.of("orderID", orderId, "status", "SUCCESS");
+            Map<String, Object> response = Map.of("orderID", orderId, "status", "CREATED");
             kafkaProducer.send("inventory.reserved", response);
             log.info("Sent inventory.reserved (SUCCESS) for order: {}", orderId);
 
@@ -145,7 +145,7 @@ public class KafkaConsumer {
             for (Integer expiredOrderId : expiredOrderIds) {
                 Map<String, Object> event = Map.of(
                         "orderID", expiredOrderId,
-                        "reason", "RESERVATION_EXPIRED");
+                        "reason", "Payment timeout");
 
                 kafkaProducer.send("inventory.reservation-expired", event);
                 log.info("Published inventory.reservation-expired for order: {}", expiredOrderId);

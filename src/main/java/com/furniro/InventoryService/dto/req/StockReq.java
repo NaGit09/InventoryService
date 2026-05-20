@@ -1,5 +1,7 @@
 package com.furniro.InventoryService.dto.req;
 
+import com.furniro.InventoryService.utils.TransactionType;
+
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -13,10 +15,12 @@ public class StockReq {
 
     private Integer stockId;
 
+
+    private TransactionType type;
+    
     @NotBlank(message = "SKU cannot be blank")
     private String sku;
 
-    private String type;
 
     @Min(value = 1, message = "Quantity must be at least 1")
     private Integer quantity;
