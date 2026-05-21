@@ -79,16 +79,21 @@ public class StockService {
         TransactionType type;
         // 2. update stock
         if (TransactionType.IN.name().equalsIgnoreCase(req.getType().name())) {
+
             stock.setTotalQuantity(stock.getTotalQuantity() + req.getQuantity());
             stock.setAvailableQuantity(stock.getAvailableQuantity() + req.getQuantity());
             type = TransactionType.IN;
+
         } else if (TransactionType.OUT.name().equalsIgnoreCase(req.getType().name())) {
+
             if (stock.getAvailableQuantity() < req.getQuantity()) {
                 throw new InventoryException(InventoryErrorCode.WAREHOUSE_NOT_ENOUGH_STOCK);
             }
+
             stock.setTotalQuantity(stock.getTotalQuantity() - req.getQuantity());
             stock.setAvailableQuantity(stock.getAvailableQuantity() - req.getQuantity());
             type = TransactionType.OUT;
+
         } else {
             throw new InventoryException(InventoryErrorCode.INVALID_INPUT);
         }
@@ -124,6 +129,7 @@ public class StockService {
     }
 
     public ResponseEntity<AType> getStockBySku(String sku) {
+        
         Stock stock = stockRepository.findBySku(sku)
                 .orElseThrow(() -> new InventoryException(InventoryErrorCode.STOCK_NOT_FOUND));
 

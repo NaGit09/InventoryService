@@ -43,8 +43,6 @@ public class Stock {
     @Builder.Default
     private Integer availableQuantity = 0;
 
-
-
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 }

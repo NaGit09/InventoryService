@@ -24,7 +24,8 @@ public class StockTransaction {
     private String sku;
 
     @Enumerated(EnumType.STRING)
-    private TransactionType type;
+    @Builder.Default
+    private TransactionType type = TransactionType.IN;
 
     private Integer quantity;
 

@@ -49,7 +49,7 @@ public class AdminStockController {
     public ResponseEntity<AType> getAllStock(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "stockId") String sortBy) {
+            @RequestParam(defaultValue = "stockID") String sortBy) {
         return statisticService.getAllStock(page, size, sortBy);
     }
 
@@ -62,7 +62,7 @@ public class AdminStockController {
     public ResponseEntity<AType> checkLowStock(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "stockId") String sortBy) {
+            @RequestParam(defaultValue = "stockID") String sortBy) {
         return statisticService.checkLowStock(page, size, sortBy);
     }
 

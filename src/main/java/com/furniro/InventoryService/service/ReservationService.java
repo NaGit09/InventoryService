@@ -50,13 +50,16 @@ public class ReservationService {
     @Transactional
     public void handlePaymentSuccess(Integer orderId) {
 
-        List<StockReservation> reservations = reservationRepository.findByOrderIDAndStatus(orderId,
-                ReservationStatus.PENDING);
+        List<StockReservation> reservations = reservationRepository
+            .findByOrderIDAndStatus(orderId,ReservationStatus.PENDING);
 
         for (StockReservation res : reservations) {
 
-            // 1. Deduct Total and Reserved in Stock (StockService handles transaction recording)
-            stockService.deductStock(res.getSku(), res.getQuantity(), orderId.toString());
+            // 1. Deduct Total and Reserved in Stock
+            stockService.deductStock(
+                res.getSku(), 
+                res.getQuantity(), 
+                orderId.toString());
 
             // 2. Update reservation status
             res.setStatus(ReservationStatus.COMPLETED);
@@ -68,8 +71,8 @@ public class ReservationService {
     @Transactional
     public void handleOrderCancelled(Integer orderId) {
 
-        List<StockReservation> reservations = reservationRepository.findByOrderIDAndStatus(orderId,
-                ReservationStatus.PENDING);
+        List<StockReservation> reservations = reservationRepository
+            .findByOrderIDAndStatus(orderId,ReservationStatus.PENDING);
 
         for (StockReservation res : reservations) {
             // 1. Return Reserved to Available

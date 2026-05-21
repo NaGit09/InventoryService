@@ -45,7 +45,7 @@ public class StockTransactionService {
             int size) {
         try {
             // 1. Tạo Pageable (phân trang)
-            Pageable pageable = PageRequest.of(page, size, Sort.by("transactionId").descending());
+            Pageable pageable = PageRequest.of(page, size, Sort.by("transactionID").descending());
 
             // 2. Tìm kiếm theo SKU (nếu có), nếu không có thì lấy tất cả
             Page<StockTransaction> pageResult;
