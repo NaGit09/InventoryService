@@ -13,7 +13,7 @@ import lombok.*;
 @AllArgsConstructor
 public class StockReq {
 
-    private Integer stockId;
+    private Integer stockID;
 
 
     private TransactionType type;

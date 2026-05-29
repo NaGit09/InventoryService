@@ -73,7 +73,7 @@ public class StockService {
     @Transactional
     public ResponseEntity<AType> updateStock(StockReq req) {
         // 1. find stock
-        Stock stock = stockRepository.findById(req.getStockId())
+        Stock stock = stockRepository.findById(req.getStockID())
                 .orElseThrow(() -> new InventoryException(InventoryErrorCode.STOCK_NOT_FOUND));
 
         TransactionType type;
