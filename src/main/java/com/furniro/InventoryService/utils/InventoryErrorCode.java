@@ -19,6 +19,8 @@ public enum InventoryErrorCode {
     INVENTORY_NOT_FOUND(404, "Inventory not found"),
             
     INVALID_PAGE_SIZE(404, "Invalid page size"),
+
+    INVALID_RELEASE_QUANTITY(400, "Invalid release quantity"),
             
     INVALID_INPUT(400, "Invalid input");
 

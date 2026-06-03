@@ -29,7 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @RequiredArgsConstructor
 public class StockService {
-    
+
     private final StockRepository stockRepository;
 
     private final WarehouseRepository warehouseRepository;
@@ -129,7 +129,7 @@ public class StockService {
     }
 
     public ResponseEntity<AType> getStockBySku(String sku) {
-        
+
         Stock stock = stockRepository.findBySku(sku)
                 .orElseThrow(() -> new InventoryException(InventoryErrorCode.STOCK_NOT_FOUND));
 
@@ -146,13 +146,12 @@ public class StockService {
         return ResponseEntity.ok(ApiType.success(stockRepository.listStockLowThreshold(pageable)));
     }
 
-    
     // ==== KAFKA EVENT ====
     // event when adjust stock
     @Transactional
     public void adjustStock(String sku, Integer quantity, String referenceId, String note) {
-        
-        Stock stock = stockRepository.findBySku(sku)
+
+        Stock stock = stockRepository.findBySkuForUpdate(sku)
                 .orElseThrow(() -> new InventoryException(InventoryErrorCode.STOCK_NOT_FOUND));
 
         TransactionType type;
@@ -168,7 +167,7 @@ public class StockService {
             stock.setAvailableQuantity(stock.getAvailableQuantity() + quantity);
             type = TransactionType.ADJUST;
         }
-        
+
         stockRepository.save(stock);
 
         // record transaction
@@ -180,12 +179,12 @@ public class StockService {
                 .note(note)
                 .build());
     }
-    
-    // event when stock is restocked    
+
+    // event when stock is restocked
     @Transactional
     public void restockBySku(String sku, Integer quantity, String referenceId, String note) {
-        // 1. find stock
-        Stock stock = stockRepository.findBySku(sku)
+        // 1. find stock with pessimistic lock
+        Stock stock = stockRepository.findBySkuForUpdate(sku)
                 .orElseThrow(() -> new InventoryException(InventoryErrorCode.STOCK_NOT_FOUND));
 
         // 2. update stock
@@ -212,18 +211,17 @@ public class StockService {
                     "warehouseID", stock.getWarehouse().getWarehouseID(),
                     "timestamp", System.currentTimeMillis());
 
-            
             kafkaProducer.send("inventory.low-stock", lowStockEvent);
             log.info("Published inventory.low-stock for SKU: {}", sku);
         }
     }
-    
+
     // kafka event order.completed
     @Transactional
     public Boolean deductStock(String sku, Integer quantity, String orderId) {
-        Stock stock = stockRepository.findBySku(sku)
+        Stock stock = stockRepository.findBySkuForUpdate(sku)
                 .orElseThrow(() -> new InventoryException(InventoryErrorCode.STOCK_NOT_FOUND));
-        
+
         if (stock.getReservedQuantity() >= quantity) {
             stock.setReservedQuantity(stock.getReservedQuantity() - quantity);
             stock.setTotalQuantity(stock.getTotalQuantity() - quantity);
@@ -239,7 +237,7 @@ public class StockService {
                     .build());
             return true;
         } else {
-            log.error("Not enough reserved quantity to deduct for SKU: {}. Reserved: {}, Needed: {}", 
+            log.error("Not enough reserved quantity to deduct for SKU: {}. Reserved: {}, Needed: {}",
                     sku, stock.getReservedQuantity(), quantity);
             return false;
         }
@@ -248,30 +246,30 @@ public class StockService {
     // kafka event order.cancelled
     @Transactional
     public Boolean releaseStock(String sku, Integer quantity, String orderId) {
-        // 1. find stock
-        Stock stock = stockRepository.findBySku(sku)
+
+        Stock stock = stockRepository.findBySkuForUpdate(sku)
                 .orElseThrow(() -> new InventoryException(InventoryErrorCode.STOCK_NOT_FOUND));
 
-        // 2. update stock
-        if (stock.getReservedQuantity() >= quantity) {
-            stock.setAvailableQuantity(stock.getAvailableQuantity() + quantity);
-            stock.setReservedQuantity(stock.getReservedQuantity() - quantity);
-            stockRepository.save(stock);
-            
-            log.info("Released stock for SKU: {}, Quantity: {}, Order ID: {}", sku, quantity, orderId);
-            return true;
-        } else {
-            log.error("Not enough reserved quantity to release for SKU: {}. Reserved: {}, Needed: {}", 
-                    sku, stock.getReservedQuantity(), quantity);
-            return false;
+        if (stock.getReservedQuantity() < quantity) {
+            log.error("Not enough reserved quantity to release for SKU: {}. Reserved: {}, Requested: {}, Order ID: {}",
+                    sku, stock.getReservedQuantity(), quantity, orderId);
+            throw new InventoryException(InventoryErrorCode.INVALID_RELEASE_QUANTITY);
         }
+
+        stock.setAvailableQuantity(stock.getAvailableQuantity() + quantity);
+        stock.setReservedQuantity(stock.getReservedQuantity() - quantity);
+
+        stockRepository.save(stock);
+
+        log.info("Successfully released stock for SKU: {}, Quantity: {}, Order ID: {}", sku, quantity, orderId);
+        return true;
     }
 
     // kafka event order.pending
     @Transactional
     public Stock reserveStock(String sku, Integer quantity, String orderId) {
-        // 1. find stock
-        Stock stock = stockRepository.findBySku(sku)
+        // 1. find stock with pessimistic lock
+        Stock stock = stockRepository.findBySkuForUpdate(sku)
                 .orElseThrow(() -> new InventoryException(InventoryErrorCode.STOCK_NOT_FOUND));
 
         // 2. check availability
@@ -288,6 +286,5 @@ public class StockService {
 
         return stock;
     }
-
 
 }

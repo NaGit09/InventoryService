@@ -23,33 +23,25 @@ public class KafkaConsumer {
     private final KafkaProducer kafkaProducer;
 
     @KafkaListener(topics = "order.created", groupId = "inventory")
-    // ORDER LISTEN THIS EVENT
     public void onOrderCreated(Map<String, Object> message) {
-        // 1. init order id
         Integer orderId = null;
         try {
             log.info("Received order.created: {}", message);
-            // seperate data from kafka message
             orderId = (Integer) message.get("orderID");
 
             List<StockItem> items = objectMapper.convertValue(
                     message.get("items"),
                     objectMapper.getTypeFactory().constructCollectionType(List.class, StockItem.class));
 
-            // 2. handle order created
             reservationService.handleOrderCreated(orderId, items);
 
-            // 3. Send response to Order Service
-            Map<String, Object> response = Map.of("orderID", orderId, "status", "CREATED");
-            kafkaProducer.send("inventory.reserved", response);
-            log.info("Sent inventory.reserved (SUCCESS) for order: {}", orderId);
-
         } catch (Exception e) {
-            log.error("Failed to reserve stock for order: {}", orderId, e);
-
-            Map<String, Object> response = Map.of("orderID", message.get("orderID"), "status", "FAILED");
-            kafkaProducer.send("inventory.reserved", response);
-            log.warn("Sent inventory.reserved (FAILED) for order: {}", message.get("orderID"));
+            log.error("Failed to process order.created event for order: {}", orderId, e);
+            try {
+                reservationService.saveToOutbox((Integer) message.get("orderID"), "FAILED");
+            } catch (Exception ex) {
+                log.error("Critical: Failed to save FAILED state to outbox", ex);
+            }
         }
     }
 
@@ -132,24 +124,13 @@ public class KafkaConsumer {
     // ─────────────────────────────────────────────────────────────────────────
     // INTERNAL SCHEDULER
     // ─────────────────────────────────────────────────────────────────────────
-
     @KafkaListener(topics = "reservation.expiry-check", groupId = "inventory")
     // ORDER LISTEN THIS EVENT
     public void onReservationExpiryCheck(Map<String, Object> message) {
         try {
             log.info("Received reservation.expiry-check: {}", message);
-            // 1. handle reservation expiry
-            List<Integer> expiredOrderIds = reservationService.expireStaleReservations();
-
-            // 2. publish reservation expired event
-            for (Integer expiredOrderId : expiredOrderIds) {
-                Map<String, Object> event = Map.of(
-                        "orderID", expiredOrderId,
-                        "reason", "Payment timeout");
-
-                kafkaProducer.send("inventory.reservation-expired", event);
-                log.info("Published inventory.reservation-expired for order: {}", expiredOrderId);
-            }
+            // 1. handle reservation expiry (saves outbox events automatically)
+            reservationService.expireStaleReservations();
 
         } catch (Exception e) {
             log.error("Error processing reservation.expiry-check", e);

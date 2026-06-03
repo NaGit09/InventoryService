@@ -1,7 +1,11 @@
 package com.furniro.InventoryService.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.furniro.InventoryService.database.entity.OutboxEvent;
 import com.furniro.InventoryService.database.entity.Stock;
 import com.furniro.InventoryService.database.entity.StockReservation;
+import com.furniro.InventoryService.database.repository.OutboxRepository;
 import com.furniro.InventoryService.database.repository.ReservationRepository;
 import com.furniro.InventoryService.dto.req.StockItem;
 import com.furniro.InventoryService.utils.ReservationStatus;
@@ -13,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -22,6 +27,42 @@ public class ReservationService {
 
     private final StockService stockService;
     private final ReservationRepository reservationRepository;
+    private final OutboxRepository outboxRepository;
+    private final ObjectMapper objectMapper;
+
+    public void saveToOutbox(Integer orderId, String status) throws JsonProcessingException {
+        
+        Map<String, Object> response = Map.of("orderID", orderId, "status", status);
+
+        OutboxEvent event = new OutboxEvent();
+
+        event.setAggregateId(String.valueOf(orderId));
+
+        event.setTopic("inventory.reserved");
+
+        event.setPayload(objectMapper.writeValueAsString(response));
+
+        event.setStatus("PENDING");
+
+        outboxRepository.save(event);
+    }
+
+    public void saveExpiryToOutbox(Integer orderId, String reason) throws JsonProcessingException {
+        
+        Map<String, Object> response = Map.of("orderID", orderId, "reason", reason);
+
+        OutboxEvent event = new OutboxEvent();
+
+        event.setAggregateId(String.valueOf(orderId));
+
+        event.setTopic("inventory.reservation-expired");
+
+        event.setPayload(objectMapper.writeValueAsString(response));
+
+        event.setStatus("PENDING");
+
+        outboxRepository.save(event);
+    }
 
     @Transactional
     public void handleOrderCreated(Integer orderId, List<StockItem> items) {
@@ -45,25 +86,32 @@ public class ReservationService {
 
             reservationRepository.save(reservation);
         }
+
+        try {
+            saveToOutbox(orderId, "CREATED");
+        } catch (JsonProcessingException e) {
+            log.error("Failed to save CREATED state to outbox", e);
+            throw new RuntimeException("Failed to save CREATED state to outbox", e);
+        }
     }
 
     @Transactional
     public void handlePaymentSuccess(Integer orderId) {
 
         List<StockReservation> reservations = reservationRepository
-            .findByOrderIDAndStatus(orderId,ReservationStatus.PENDING);
+                .findByOrderIDAndStatus(orderId, ReservationStatus.PENDING);
 
         for (StockReservation res : reservations) {
 
             // 1. Deduct Total and Reserved in Stock
             stockService.deductStock(
-                res.getSku(), 
-                res.getQuantity(), 
-                orderId.toString());
+                    res.getSku(),
+                    res.getQuantity(),
+                    orderId.toString());
 
             // 2. Update reservation status
             res.setStatus(ReservationStatus.COMPLETED);
-            
+
             reservationRepository.save(res);
         }
     }
@@ -72,7 +120,7 @@ public class ReservationService {
     public void handleOrderCancelled(Integer orderId) {
 
         List<StockReservation> reservations = reservationRepository
-            .findByOrderIDAndStatus(orderId,ReservationStatus.PENDING);
+                .findByOrderIDAndStatus(orderId, ReservationStatus.PENDING);
 
         for (StockReservation res : reservations) {
             // 1. Return Reserved to Available
@@ -83,7 +131,6 @@ public class ReservationService {
             // 2. Update reservation status
             res.setStatus(ReservationStatus.CANCELLED);
 
-            
             reservationRepository.save(res);
         }
     }
@@ -104,19 +151,26 @@ public class ReservationService {
 
         if (!expired.isEmpty()) {
             log.info("Cleaning up {} expired reservations", expired.size());
-            
+
             for (StockReservation res : expired) {
                 stockService.releaseStock(
-                    res.getSku(),
-                    res.getQuantity(),
-                    "EXPIRY-" + res.getOrderID());
+                        res.getSku(),
+                        res.getQuantity(),
+                        "EXPIRY-" + res.getOrderID());
 
                 res.setStatus(ReservationStatus.EXPIRED);
 
                 reservationRepository.save(res);
+
+                try {
+                    saveExpiryToOutbox(res.getOrderID(), "Payment timeout");
+                } catch (JsonProcessingException e) {
+                    log.error("Failed to save EXPIRED state to outbox for order: {}", res.getOrderID(), e);
+                    throw new RuntimeException("Failed to save EXPIRED state to outbox", e);
+                }
             }
         }
-        
+
         return expired.stream()
                 .map(StockReservation::getOrderID)
                 .distinct()

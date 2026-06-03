@@ -32,8 +32,7 @@ public class StatisticService {
     public ResponseEntity<AType> getAvailableStock(String sku) {
         // 1. find stock
         Stock stock = stockRepository.findBySku(sku)
-                .orElseThrow(() ->
-                        new InventoryException(InventoryErrorCode.STOCK_NOT_FOUND));
+                .orElseThrow(() -> new InventoryException(InventoryErrorCode.STOCK_NOT_FOUND));
 
         // 2. return response
         return ResponseEntity.ok(ApiType.success(stock.getAvailableQuantity()));
@@ -41,28 +40,16 @@ public class StatisticService {
 
     // get total stock
     public ResponseEntity<AType> getStatistics() {
-        // get all stock
-        List<Stock> stocks = stockRepository.findAll();
+        StockRepository.StockSums sums = stockRepository.getStockSums();
+        Integer totalAvailable = sums != null && sums.getTotalAvailable() != null ? sums.getTotalAvailable() : 0;
+        Integer totalReserved = sums != null && sums.getTotalReserved() != null ? sums.getTotalReserved() : 0;
 
-        // total available stock
-        Integer totalAvailableStock = stocks.stream()
-                .map(Stock::getAvailableQuantity)
-                .reduce(0, Integer::sum);
-
-        // total reserved stock
-        Integer totalReservedStock = stocks.stream()
-                .map(Stock::getReservedQuantity)
-                .reduce(0, Integer::sum);
-
-        // list low stock
-        List<Stock> lowStock = stocks.stream()
-                .filter(stock -> stock.getAvailableQuantity() < stock.getLowStockThreshold())
-                .collect(Collectors.toList());
+        List<Stock> lowStock = stockRepository.findLowStock();
 
         StockStatistic stockStatistic = StockStatistic.builder()
-                .totalAvailableStock(totalAvailableStock)
-                .totalReservedStock(totalReservedStock)
-                .totalStock(totalAvailableStock + totalReservedStock)
+                .totalAvailableStock(totalAvailable)
+                .totalReservedStock(totalReserved)
+                .totalStock(totalAvailable + totalReserved)
                 .lowStock(lowStock)
                 .build();
 
@@ -71,10 +58,9 @@ public class StatisticService {
 
     // get all stock
     public ResponseEntity<AType> getAllStock(
-        int page,
-        int size,
-        String sortBy
-    ) {
+            int page,
+            int size,
+            String sortBy) {
         // 1. check page size
         if (page < 0 || size <= 0) {
             throw new InventoryException(InventoryErrorCode.INVALID_PAGE_SIZE);
@@ -92,10 +78,9 @@ public class StatisticService {
 
     // check stock low
     public ResponseEntity<AType> checkLowStock(
-        int page,
-        int size,
-        String sortBy
-    ) {
+            int page,
+            int size,
+            String sortBy) {
         // 1. check page size
         if (page < 0 || size <= 0) {
             throw new InventoryException(InventoryErrorCode.INVALID_PAGE_SIZE);
