@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @Tag(name = "Admin Stock", description = "Quản lý kho dành cho Admin")
 @RestController
@@ -72,5 +73,15 @@ public class AdminStockController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return stockTransactionService.getAllTransactions(sku, page, size);
+    }
+
+    @GetMapping("/export")
+    public ResponseEntity<byte[]> exportStockCsv() {
+        return stockService.exportStockToCsv();
+    }
+
+    @PostMapping("/import")
+    public ResponseEntity<AType> importStockCsv(@RequestParam("file") MultipartFile file) {
+        return stockService.importStockFromCsv(file);
     }
 }

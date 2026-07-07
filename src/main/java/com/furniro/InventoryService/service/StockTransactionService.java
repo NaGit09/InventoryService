@@ -11,7 +11,7 @@ import com.furniro.InventoryService.database.repository.StockTransactionReposito
 import com.furniro.InventoryService.dto.API.AType;
 import com.furniro.InventoryService.dto.API.ApiType;
 import com.furniro.InventoryService.dto.req.TransactionLog;
-import com.furniro.InventoryService.exception.InventoryException;
+import com.furniro.InventoryService.exception.CustomException;
 import com.furniro.InventoryService.utils.InventoryErrorCode;
 
 import jakarta.transaction.Transactional;
@@ -63,7 +63,7 @@ public class StockTransactionService {
 
         } catch (Exception e) {
             log.error("Error getting transactions: ", e);
-            throw new InventoryException(InventoryErrorCode.SYSTEM_ERROR);
+            throw new CustomException(InventoryErrorCode.SYSTEM_ERROR);
         }
     }
 }

@@ -1,7 +1,6 @@
 package com.furniro.InventoryService.service;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -15,7 +14,7 @@ import com.furniro.InventoryService.database.repository.StockRepository;
 import com.furniro.InventoryService.dto.API.AType;
 import com.furniro.InventoryService.dto.API.ApiType;
 import com.furniro.InventoryService.dto.res.StockStatistic;
-import com.furniro.InventoryService.exception.InventoryException;
+import com.furniro.InventoryService.exception.CustomException;
 import com.furniro.InventoryService.utils.InventoryErrorCode;
 
 import lombok.RequiredArgsConstructor;
@@ -32,7 +31,7 @@ public class StatisticService {
     public ResponseEntity<AType> getAvailableStock(String sku) {
         // 1. find stock
         Stock stock = stockRepository.findBySku(sku)
-                .orElseThrow(() -> new InventoryException(InventoryErrorCode.STOCK_NOT_FOUND));
+                .orElseThrow(() -> new CustomException(InventoryErrorCode.STOCK_NOT_FOUND));
 
         // 2. return response
         return ResponseEntity.ok(ApiType.success(stock.getAvailableQuantity()));
@@ -63,7 +62,7 @@ public class StatisticService {
             String sortBy) {
         // 1. check page size
         if (page < 0 || size <= 0) {
-            throw new InventoryException(InventoryErrorCode.INVALID_PAGE_SIZE);
+            throw new CustomException(InventoryErrorCode.INVALID_PAGE_SIZE);
         }
 
         // 2. create pageable
@@ -83,7 +82,7 @@ public class StatisticService {
             String sortBy) {
         // 1. check page size
         if (page < 0 || size <= 0) {
-            throw new InventoryException(InventoryErrorCode.INVALID_PAGE_SIZE);
+            throw new CustomException(InventoryErrorCode.INVALID_PAGE_SIZE);
         }
 
         // 2. create pageable

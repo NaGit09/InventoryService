@@ -31,7 +31,7 @@ public class ReservationService {
     private final ObjectMapper objectMapper;
 
     public void saveToOutbox(Integer orderId, String status) throws JsonProcessingException {
-        
+
         Map<String, Object> response = Map.of("orderID", orderId, "status", status);
 
         OutboxEvent event = new OutboxEvent();
@@ -48,7 +48,7 @@ public class ReservationService {
     }
 
     public void saveExpiryToOutbox(Integer orderId, String reason) throws JsonProcessingException {
-        
+
         Map<String, Object> response = Map.of("orderID", orderId, "reason", reason);
 
         OutboxEvent event = new OutboxEvent();
@@ -172,7 +172,7 @@ public class ReservationService {
         }
 
         return expired.stream()
-                .map(StockReservation::getOrderID)
+                .map(reservation -> reservation.getOrderID())
                 .distinct()
                 .collect(Collectors.toList());
     }

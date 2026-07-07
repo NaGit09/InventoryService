@@ -13,14 +13,14 @@ import java.util.stream.Collectors;
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(BaseException.class)
-    public ResponseEntity<AType> handleAppExceptions(BaseException ex) {
+    @ExceptionHandler(CustomException.class)
+    public ResponseEntity<AType> handleAppExceptions(CustomException ex) {
         AType error = ErrorType.builder()
-                .code(ex.getCode())
-                .message(ex.getMessage())
+                .code(ex.getErrorCode().getCode())
+                .message(ex.getErrorCode().getMessage())
                 .build();
 
-        return new ResponseEntity<>(error, HttpStatus.valueOf(ex.getCode()));
+        return new ResponseEntity<>(error, HttpStatus.valueOf(ex.getErrorCode().getCode()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
