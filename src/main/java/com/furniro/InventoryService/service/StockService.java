@@ -1,11 +1,22 @@
 package com.furniro.InventoryService.service;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.furniro.InventoryService.database.entity.Stock;
 import com.furniro.InventoryService.database.entity.Warehouse;
@@ -287,67 +298,69 @@ public class StockService {
         return stock;
     }
 
-    public org.springframework.http.ResponseEntity<byte[]> exportStockToCsv() {
+    public ResponseEntity<byte[]> exportStockToCsv() {
         try {
-            java.util.List<Stock> stocks = stockRepository.findAll();
+            List<Stock> stocks = stockRepository.findAll();
             StringBuilder csv = new StringBuilder();
-            csv.append("StockID,VariantID,SKU,TotalQuantity,ReservedQuantity,AvailableQuantity,LowStockThreshold,WarehouseID,WarehouseName\n");
-            
+            csv.append(
+                    "StockID,VariantID,SKU,TotalQuantity,ReservedQuantity,AvailableQuantity,LowStockThreshold,WarehouseID,WarehouseName\n");
+
             for (Stock s : stocks) {
                 String warehouseName = s.getWarehouse() != null ? s.getWarehouse().getName() : "N/A";
                 Integer warehouseId = s.getWarehouse() != null ? s.getWarehouse().getWarehouseID() : 0;
                 csv.append(s.getStockID()).append(",")
-                   .append(s.getVariantID()).append(",")
-                   .append(s.getSku()).append(",")
-                   .append(s.getTotalQuantity()).append(",")
-                   .append(s.getReservedQuantity()).append(",")
-                   .append(s.getAvailableQuantity()).append(",")
-                   .append(s.getLowStockThreshold()).append(",")
-                   .append(warehouseId).append(",")
-                   .append("\"").append(warehouseName.replace("\"", "\"\"")).append("\"\n");
+                        .append(s.getVariantID()).append(",")
+                        .append(s.getSku()).append(",")
+                        .append(s.getTotalQuantity()).append(",")
+                        .append(s.getReservedQuantity()).append(",")
+                        .append(s.getAvailableQuantity()).append(",")
+                        .append(s.getLowStockThreshold()).append(",")
+                        .append(warehouseId).append(",")
+                        .append("\"").append(warehouseName.replace("\"", "\"\"")).append("\"\n");
             }
-            
-            byte[] csvBytes = csv.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
-            
-            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
-            headers.setContentType(org.springframework.http.MediaType.parseMediaType("text/csv"));
-            headers.setContentDisposition(org.springframework.http.ContentDisposition.parse("attachment; filename=inventory_export.csv"));
+
+            byte[] csvBytes = csv.toString().getBytes(StandardCharsets.UTF_8);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.parseMediaType("text/csv"));
+            headers.setContentDisposition(ContentDisposition.parse("attachment; filename=inventory_export.csv"));
             headers.setContentLength(csvBytes.length);
-            
-            return new org.springframework.http.ResponseEntity<>(csvBytes, headers, org.springframework.http.HttpStatus.OK);
+
+            return new ResponseEntity<>(csvBytes, headers, HttpStatus.OK);
         } catch (Exception e) {
             log.error("Failed to export stock CSV", e);
-            return new org.springframework.http.ResponseEntity<>(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     @Transactional
-    public org.springframework.http.ResponseEntity<AType> importStockFromCsv(org.springframework.web.multipart.MultipartFile file) {
+    public ResponseEntity<AType> importStockFromCsv(MultipartFile file) {
         if (file.isEmpty()) {
             throw new CustomException(InventoryErrorCode.INVALID_INPUT);
         }
-        
+
         int successCount = 0;
         int failCount = 0;
-        java.util.List<String> errors = new java.util.ArrayList<>();
-        
-        try (java.io.BufferedReader reader = new java.io.BufferedReader(
-                new java.io.InputStreamReader(file.getInputStream(), java.nio.charset.StandardCharsets.UTF_8))) {
-            
+        List<String> errors = new ArrayList<>();
+
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
+
             String line = reader.readLine(); // header
-            
+
             int lineNum = 1;
             while ((line = reader.readLine()) != null) {
                 lineNum++;
-                if (line.trim().isEmpty()) continue;
-                
+                if (line.trim().isEmpty())
+                    continue;
+
                 String[] cols = line.split(",(?=([^\"]*\"[^\"]*\")*[^\"]*$)");
                 if (cols.length < 4) {
                     failCount++;
                     errors.add("Line " + lineNum + ": Invalid columns count");
                     continue;
                 }
-                
+
                 try {
                     String sku = cols[0].trim();
                     Integer variantId = cols[1].trim().isEmpty() ? null : Integer.valueOf(cols[1].trim());
@@ -355,11 +368,11 @@ public class StockService {
                     Integer quantity = Integer.valueOf(cols[3].trim());
                     String typeStr = cols.length > 4 ? cols[4].trim() : "IN";
                     String note = cols.length > 5 ? cols[5].trim().replace("\"", "") : "Import CSV adjustment";
-                    
+
                     Warehouse warehouse = warehouseRepository.findById(warehouseId)
                             .orElseThrow(() -> new CustomException(InventoryErrorCode.WAREHOUSE_NOT_FOUND));
-                    
-                    java.util.Optional<Stock> optStock = stockRepository.findBySku(sku);
+
+                    Optional<Stock> optStock = stockRepository.findBySku(sku);
                     if (optStock.isPresent()) {
                         Stock stock = optStock.get();
                         TransactionType type;
@@ -376,7 +389,7 @@ public class StockService {
                             type = TransactionType.IN;
                         }
                         stockRepository.save(stock);
-                        
+
                         stockTransactionService.recordTransaction(TransactionLog.builder()
                                 .sku(stock.getSku())
                                 .type(type)
@@ -395,9 +408,9 @@ public class StockService {
                                 .availableQuantity(quantity)
                                 .lowStockThreshold(5)
                                 .build();
-                        
+
                         stockRepository.save(stock);
-                        
+
                         stockTransactionService.recordTransaction(TransactionLog.builder()
                                 .sku(stock.getSku())
                                 .type(TransactionType.IN)
@@ -411,13 +424,12 @@ public class StockService {
                     errors.add("Line " + lineNum + ": " + ex.getMessage());
                 }
             }
-            
-            java.util.Map<String, Object> result = java.util.Map.of(
-                "successCount", successCount,
-                "failCount", failCount,
-                "errors", errors
-            );
-            return org.springframework.http.ResponseEntity.ok(ApiType.success(result));
+
+            Map<String, Object> result = Map.of(
+                    "successCount", successCount,
+                    "failCount", failCount,
+                    "errors", errors);
+            return ResponseEntity.ok(ApiType.success(result));
         } catch (Exception e) {
             log.error("Failed to parse CSV upload", e);
             throw new CustomException(InventoryErrorCode.INVALID_INPUT);

@@ -20,7 +20,6 @@ public class KafkaConsumer {
     private final ReservationService reservationService;
     private final StockService stockService;
     private final ObjectMapper objectMapper;
-    private final KafkaProducer kafkaProducer;
 
     @KafkaListener(topics = "order.created", groupId = "inventory")
     public void onOrderCreated(Map<String, Object> message) {
